@@ -128,8 +128,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                     save()
                     testResult = "Testing…"
                     scope.launch {
-                        testResult = try {
-                            ServerApi(prefs.serverUrl, prefs.token, prefs.deviceId, prefs.deviceName).ping(); "✓ Connected"
+                        val numbers = prefs.deviceNumbers
+                        testResult = if (numbers.isEmpty()) {
+                            "✗ Enter your number under “My number” first"
+                        } else try {
+                            ServerApi(prefs.serverUrl, prefs.token, prefs.deviceId, prefs.deviceName, numbers).ping(); "✓ Connected"
                         } catch (e: Exception) {
                             "✗ ${e.message}"
                         }
@@ -152,6 +155,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             Text(
                 when {
                     !prefs.serverConfigured -> "Connect a server to start syncing."
+                    detectedNumbers.isEmpty() && myNumber.isBlank() -> "Enter your number under “My number” to start syncing."
                     remaining < 0 -> "History import not started yet."
                     remaining == 0 -> "✓ All messages synced."
                     else -> "Importing history… $remaining messages left"
@@ -170,12 +174,14 @@ fun SettingsScreen(onBack: () -> Unit) {
             HorizontalDivider()
             Section("My number")
             Text(
-                "Used to keep you out of group-chat participant lists. Detected from SIM: ${detectedNumbers.ifEmpty { "nothing" }}",
+                "Identifies this phone to other clients (they pick phones by number), and keeps you out of " +
+                    "group-chat participant lists. Required if the SIM doesn't report it. " +
+                    "Detected from SIM: ${detectedNumbers.ifEmpty { "nothing" }}",
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedTextField(
                 myNumber, { myNumber = it }, Modifier.fillMaxWidth(),
-                label = { Text("Override (optional)") }, singleLine = true,
+                label = { Text(if (detectedNumbers.isEmpty()) "Your number (required)" else "Override (optional)") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             )
             OutlinedButton(onClick = ::save) { Text("Save") }

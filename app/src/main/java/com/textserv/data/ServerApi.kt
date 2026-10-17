@@ -64,9 +64,11 @@ class ServerApi(
     private val token: String,
     private val deviceId: String,
     deviceName: String,
+    deviceNumbers: Collection<String>,
 ) {
     // Header values must be printable ASCII.
     private val deviceName = deviceName.filter { it.code in 0x20..0x7E }.trim().ifEmpty { "Android phone" }.take(64)
+    private val deviceNumbers = deviceNumbers.joinToString(",") { n -> n.filter { it.code in 0x21..0x7E && it != ',' } }
 
     companion object {
         val json = Json { ignoreUnknownKeys = true; explicitNulls = false; encodeDefaults = true }
@@ -77,14 +79,19 @@ class ServerApi(
             .writeTimeout(120, TimeUnit.SECONDS)
             .build()
 
-        fun fromPrefs(p: Prefs): ServerApi? =
-            if (p.serverConfigured) ServerApi(p.serverUrl, p.token, p.deviceId, p.deviceName) else null
+        /** `null` until there's a server and a number to identify this phone by. */
+        fun fromPrefs(p: Prefs): ServerApi? {
+            val numbers = p.deviceNumbers
+            if (!p.serverConfigured || numbers.isEmpty()) return null
+            return ServerApi(p.serverUrl, p.token, p.deviceId, p.deviceName, numbers)
+        }
     }
 
     private fun req(path: String) = Request.Builder().url(baseUrl + path).apply {
         header("Authorization", "Bearer $token")
         header("X-Device-Id", deviceId)
         header("X-Device-Name", deviceName)
+        header("X-Device-Numbers", deviceNumbers)
     }
 
     private suspend fun <T> call(r: Request, read: (Response) -> T): T = withContext(Dispatchers.IO) {

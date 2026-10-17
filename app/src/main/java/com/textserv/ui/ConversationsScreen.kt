@@ -80,7 +80,13 @@ fun ConversationsScreen(onOpen: (Long, ThreadPreview) -> Unit, onNew: () -> Unit
     val rows by vm.rows.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf<ConvRow?>(null) }
     var serverConfigured by remember { mutableStateOf(App.prefs.serverConfigured) }
-    LaunchedEffect(Unit) { App.prefs.changes().collect { serverConfigured = App.prefs.serverConfigured } }
+    var hasNumber by remember { mutableStateOf(App.prefs.deviceNumbers.isNotEmpty()) }
+    LaunchedEffect(Unit) {
+        App.prefs.changes().collect {
+            serverConfigured = App.prefs.serverConfigured
+            hasNumber = App.prefs.deviceNumbers.isNotEmpty()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -98,9 +104,14 @@ fun ConversationsScreen(onOpen: (Long, ThreadPreview) -> Unit, onNew: () -> Unit
         },
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
-            if (!serverConfigured) {
+            val setup = when {
+                !serverConfigured -> "Server not set up — tap to connect"
+                !hasNumber -> "Couldn't detect your number — tap to enter it"
+                else -> null
+            }
+            if (setup != null) {
                 TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-                    Text("Server not set up — tap to connect")
+                    Text(setup)
                 }
             }
             val list = rows

@@ -1,34 +1,30 @@
 package com.textserv.data
 
 import android.content.Context
-import android.telephony.PhoneNumberUtils
 import android.telephony.SubscriptionManager
-import android.telephony.TelephonyManager
 import com.textserv.App
-import java.util.Locale
 
 /** Phone-number normalization, so the same person always maps to the same server thread. */
 object Phone {
-    @Volatile private var cachedIso: String? = null
-
-    private fun countryIso(ctx: Context): String = cachedIso ?: run {
-        val tm = ctx.getSystemService(TelephonyManager::class.java)
-        val iso = (tm?.simCountryIso?.takeIf { it.isNotBlank() }
-            ?: tm?.networkCountryIso?.takeIf { it.isNotBlank() }
-            ?: Locale.getDefault().country).uppercase()
-        cachedIso = iso
-        iso
-    }
-
-    /** E.164 where possible; emails and alphanumeric senders pass through. */
+    /**
+     * E.164, assuming +1 (US/Canada) when no country code is given; emails, alphanumeric
+     * senders and short codes pass through. Same rules as the server's `phone::normalize`
+     * and the TUI's, so all three agree on every number.
+     */
+    @Suppress("UNUSED_PARAMETER")
     fun normalize(ctx: Context, raw: String): String {
         val s = raw.substringBefore("/TYPE=").trim()
-        if (s.isEmpty()) return s
         if (s.contains('@')) return s.lowercase()
         if (s.any { it.isLetter() }) return s // alphanumeric sender id ("AMAZON")
-        val digits = s.filter { it.isDigit() || it == '+' }
-        if (digits.count { it.isDigit() } <= 6) return digits // short code
-        return PhoneNumberUtils.formatNumberToE164(digits, countryIso(ctx)) ?: digits
+        val digits = s.filter { it in '0'..'9' }
+        if (digits.length <= 6) return digits // short code (or empty)
+        if (s.startsWith('+')) return "+$digits"
+        if (digits.startsWith("011")) return "+" + digits.removePrefix("011") // US international prefix
+        return when {
+            digits.length == 10 -> "+1$digits"
+            digits.length == 11 && digits.startsWith('1') -> "+$digits"
+            else -> digits // e.g. a 7-digit local number: no way to know its area code
+        }
     }
 
     /** Our own number(s), normalized. Empty if the SIM won't tell us and no override is set. */
@@ -47,6 +43,6 @@ object Phone {
 
     fun isOwn(ctx: Context, addr: String, own: Set<String> = ownNumbers(ctx)): Boolean {
         val n = normalize(ctx, addr)
-        return own.any { it == n || PhoneNumberUtils.areSamePhoneNumber(it, n, countryIso(ctx)) }
+        return n in own
     }
 }

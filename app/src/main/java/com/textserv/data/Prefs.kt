@@ -32,7 +32,14 @@ class Prefs(context: Context) {
 
     val serverConfigured get() = serverUrl.isNotEmpty() && token.isNotEmpty()
 
-    /** Identifies this phone on the server, which keeps each phone's messages separate. */
+    /** This phone's own number(s). The server requires them: clients pick phones by number. */
+    val deviceNumbers: Set<String> get() = Phone.ownNumbers(appContext)
+
+    /** Connected to a server, and has a number to identify itself with. */
+    val readyToSync get() = serverConfigured && deviceNumbers.isNotEmpty()
+
+    /** The server's storage key for this phone's messages; never shown to people (they see
+     *  the number). A fresh install gets a fresh id, so a reset phone starts a clean history. */
     val deviceId: String
         @Synchronized get() = sp.getString("device_id", null)
             ?: UUID.randomUUID().toString().also { sp.edit().putString("device_id", it).apply() }

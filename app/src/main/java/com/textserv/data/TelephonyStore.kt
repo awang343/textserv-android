@@ -312,11 +312,37 @@ object TelephonyStore {
     fun unread(ctx: Context, threadId: Long): List<Msg> =
         messages(ctx, threadId, 30).filter { !it.read && !it.outgoing }
 
-    fun markThreadRead(ctx: Context, threadId: Long) {
+    /** Unread incoming messages as (ref, thread id), in every thread or just [threadId]. */
+    fun unreadRefs(ctx: Context, threadId: Long? = null): List<Pair<String, Long>> {
+        val out = ArrayList<Pair<String, Long>>()
+        val inThread = threadId?.let { " AND thread_id = $it" } ?: ""
+        fun collect(uri: Uri, prefix: String, where: String) =
+            ctx.contentResolver.query(uri, arrayOf("_id", "thread_id"), "read = 0 AND $where$inThread", null, null)?.use { c ->
+                while (c.moveToNext()) out += "$prefix${c.getLong(0)}" to c.getLong(1)
+            }
+        collect(Sms.CONTENT_URI, "sms:", "type = ${Sms.MESSAGE_TYPE_INBOX}")
+        collect(Mms.CONTENT_URI, "mms:", "msg_box = ${Mms.MESSAGE_BOX_INBOX}")
+        return out
+    }
+
+    /** Marks the whole thread read; returns the refs of the incoming messages that weren't. */
+    fun markThreadRead(ctx: Context, threadId: Long): List<String> {
+        val newlyRead = unreadRefs(ctx, threadId).map { it.first }
         val v = ContentValues().apply { put("read", 1); put("seen", 1) }
         val args = arrayOf(threadId.toString())
         ctx.contentResolver.update(Sms.CONTENT_URI, v, "thread_id = ? AND (read = 0 OR seen = 0)", args)
         ctx.contentResolver.update(Mms.CONTENT_URI, v, "thread_id = ? AND (read = 0 OR seen = 0)", args)
+        return newlyRead
+    }
+
+    /** Marks these messages ("sms:12" / "mms:34") read. */
+    fun markRead(ctx: Context, refs: Collection<String>) {
+        val v = ContentValues().apply { put("read", 1); put("seen", 1) }
+        for (ref in refs) {
+            val (kind, id) = ref.split(':', limit = 2).takeIf { it.size == 2 } ?: continue
+            val uri = if (kind == "mms") Mms.CONTENT_URI else Sms.CONTENT_URI
+            ctx.contentResolver.update(Uri.withAppendedPath(uri, id), v, null, null)
+        }
     }
 
     fun deleteMessage(ctx: Context, msg: Msg) {

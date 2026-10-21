@@ -25,6 +25,7 @@ object Uploader {
             status = if (m.msg.status == MsgStatus.FAILED) "failed" else null,
             phoneRef = m.msg.ref,
             attachments = attachmentIds,
+            read = !m.msg.outgoing && m.msg.read,
         )
     }
 }

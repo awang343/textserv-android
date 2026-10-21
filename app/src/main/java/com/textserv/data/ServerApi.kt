@@ -25,6 +25,8 @@ data class LogBody(
     val status: String? = null,
     @SerialName("phone_ref") val phoneRef: String,
     val attachments: List<String> = emptyList(),
+    /** Incoming and already read here */
+    val read: Boolean = false,
 )
 
 @Serializable
@@ -119,6 +121,16 @@ class ServerApi(
 
     suspend fun knownRefs(refs: List<String>): Set<String> = call(
         req("/api/known_refs").post(jsonBody(json.encodeToString(refs))).build()
+    ) { json.decodeFromString<List<String>>(it.body.string()).toSet() }
+
+    /** Reports messages read here; ones still being uploaded count as read when they arrive. */
+    suspend fun reportRead(refs: List<String>) = call(
+        req("/api/read_refs").post(jsonBody(json.encodeToString(refs))).build()
+    ) { }
+
+    /** Which of these unread messages were read elsewhere (on a client). */
+    suspend fun readRefs(refs: List<String>): Set<String> = call(
+        req("/api/read_refs/query").post(jsonBody(json.encodeToString(refs))).build()
     ) { json.decodeFromString<List<String>>(it.body.string()).toSet() }
 
     suspend fun uploadAttachment(bytes: ByteArray, contentType: String, filename: String): AttachmentInfo = call(

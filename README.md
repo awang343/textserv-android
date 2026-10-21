@@ -40,9 +40,11 @@ attachments_dir = "~/.local/share/textserv/attachments"  # default
 
 | Phone event | Server call |
 |---|---|
-| SMS/MMS received, or sent from the phone UI | `POST /api/attachments` (each MMS part) then `POST /api/log` with `phone_ref` |
+| SMS/MMS received, or sent from the phone UI | `POST /api/attachments` (each MMS part) then `POST /api/log` with `phone_ref` (and `read` if already read) |
 | History import / catch-up | `POST /api/known_refs` then `POST /api/log/batch` |
-| Push received (any payload) | `GET /api/outbox` → `POST /api/messages/:id/status {"status":"sending"}` (claim) → send → status `sent`/`failed` with `phone_ref` |
+| Thread read here | `POST /api/read_refs` with the refs just read, then as below |
+| Push `{"type":"read"}`, or app start / sync | `POST /api/read_refs/query` with the unread refs → mark the ones read elsewhere read |
+| Any other push | `GET /api/outbox` → `POST /api/messages/:id/status {"status":"sending"}` (claim) → send → status `sent`/`failed` with `phone_ref` |
 | New UnifiedPush endpoint | `POST /api/register` |
 
 Thread keys (`address`) are the other participants' numbers in E.164, sorted and

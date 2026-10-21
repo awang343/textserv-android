@@ -8,6 +8,7 @@ import androidx.core.app.RemoteInput
 import com.textserv.data.TelephonyStore
 import com.textserv.mms.MmsDownloader
 import com.textserv.send.Sender
+import com.textserv.sync.SyncScheduler
 import com.textserv.util.goAsyncIO
 
 class NotificationActionReceiver : BroadcastReceiver() {
@@ -27,12 +28,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 goAsyncIO {
                     val recipients = TelephonyStore.threadAddresses(context, threadId)
                     runCatching { Sender.send(context, recipients, text, emptyList()) }
-                    TelephonyStore.markThreadRead(context, threadId)
+                    SyncScheduler.syncReads(context, TelephonyStore.markThreadRead(context, threadId))
                     Notifier.cancelThread(context, threadId)
                 }
             }
             ACTION_MARK_READ -> goAsyncIO {
-                TelephonyStore.markThreadRead(context, threadId)
+                SyncScheduler.syncReads(context, TelephonyStore.markThreadRead(context, threadId))
                 Notifier.cancelThread(context, threadId)
             }
             ACTION_RETRY_DOWNLOAD -> {

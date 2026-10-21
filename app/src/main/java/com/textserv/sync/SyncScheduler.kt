@@ -45,6 +45,19 @@ object SyncScheduler {
         WorkManager.getInstance(ctx).enqueueUniqueWork("outbox", ExistingWorkPolicy.APPEND_OR_REPLACE, req)
     }
 
+    /**
+     * Reports messages just read here ([refs]) to the server, then marks read whatever was
+     * read on a client. Runs in order, so each run sees the reads before it.
+     */
+    fun syncReads(ctx: Context, refs: List<String> = emptyList()) {
+        val req = OneTimeWorkRequestBuilder<ReadWorker>()
+            .setInputData(workDataOf(ReadWorker.KEY_REFS to refs.toTypedArray()))
+            .setConstraints(online)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(ctx).enqueueUniqueWork("reads", ExistingWorkPolicy.APPEND_OR_REPLACE, req)
+    }
+
     fun registerPush(ctx: Context) {
         val req = OneTimeWorkRequestBuilder<RegisterWorker>()
             .setConstraints(online)
@@ -65,5 +78,6 @@ object SyncScheduler {
     fun kick(ctx: Context) {
         syncHistory(ctx)
         processOutbox(ctx)
+        syncReads(ctx)
     }
 }

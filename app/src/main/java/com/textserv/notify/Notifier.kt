@@ -40,8 +40,11 @@ object Notifier {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-    /** (Re)builds the notification for a thread from its unread messages; cancels it if none. */
-    fun notifyThread(ctx: Context, threadId: Long) {
+    /**
+     * (Re)builds the notification for a thread from its unread messages; cancels it if none.
+     * [quiet] updates one already showing without alerting again.
+     */
+    fun notifyThread(ctx: Context, threadId: Long, quiet: Boolean = false) {
         if (!canPost(ctx)) return
         val nm = NotificationManagerCompat.from(ctx)
         if (threadId == activeThreadId) return
@@ -82,7 +85,7 @@ object Notifier {
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setContentIntent(openThreadIntent(ctx, threadId))
             .setAutoCancel(true)
-            .setOnlyAlertOnce(false)
+            .setOnlyAlertOnce(quiet)
             .addAction(reply)
             .addAction(markRead)
             .setWhen(unread.last().date)

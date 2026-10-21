@@ -81,6 +81,7 @@ import com.textserv.data.MsgStatus
 import com.textserv.data.TelephonyStore
 import com.textserv.notify.Notifier
 import com.textserv.send.Sender
+import com.textserv.sync.SyncScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -122,7 +123,7 @@ fun ThreadScreen(threadId: Long, initialDraft: String?, preview: ThreadPreview?,
                 val addrs = TelephonyStore.threadAddresses(ctx, threadId)
                 val msgs = TelephonyStore.messages(ctx, threadId)
                 val nm = (addrs + msgs.mapNotNull { it.sender }).distinct().associateWith { Contacts.name(ctx, it) }
-                if (msgs.any { !it.read }) TelephonyStore.markThreadRead(ctx, threadId)
+                if (msgs.any { !it.read }) SyncScheduler.syncReads(ctx, TelephonyStore.markThreadRead(ctx, threadId))
                 Triple(msgs, addrs, nm)
             }
             val grew = msgs.size != messages.size

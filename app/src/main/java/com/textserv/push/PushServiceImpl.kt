@@ -13,8 +13,9 @@ import org.unifiedpush.android.connector.data.PushMessage
 
 /**
  * UnifiedPush callbacks. The server pushes `{"type":"read"}` when a thread was read on a
- * client, and `{"type":"send", ...}` when it wants us to send something; we treat any other
- * push as "check the outbox", which also covers missed pushes.
+ * client, `{"type":"delete"}` when one was deleted, and `{"type":"send", ...}` when it wants
+ * us to send something; we treat any other push as "check the outbox", which also covers
+ * missed pushes.
  */
 class PushServiceImpl : PushService() {
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
@@ -31,7 +32,11 @@ class PushServiceImpl : PushService() {
         val type = runCatching {
             ServerApi.json.parseToJsonElement(message.content.decodeToString()).jsonObject["type"]?.jsonPrimitive?.content
         }.getOrNull()
-        if (type == "read") SyncScheduler.syncReads(this) else SyncScheduler.processOutbox(this)
+        when (type) {
+            "read" -> SyncScheduler.syncReads(this)
+            "delete" -> SyncScheduler.syncDeletes(this)
+            else -> SyncScheduler.processOutbox(this)
+        }
     }
 
     override fun onRegistrationFailed(reason: FailedReason, instance: String) {

@@ -58,6 +58,15 @@ object SyncScheduler {
         WorkManager.getInstance(ctx).enqueueUniqueWork("reads", ExistingWorkPolicy.APPEND_OR_REPLACE, req)
     }
 
+    /** Deletes the messages of threads deleted on a client. */
+    fun syncDeletes(ctx: Context) {
+        val req = OneTimeWorkRequestBuilder<DeleteWorker>()
+            .setConstraints(online)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(ctx).enqueueUniqueWork("deletes", ExistingWorkPolicy.APPEND_OR_REPLACE, req)
+    }
+
     fun registerPush(ctx: Context) {
         val req = OneTimeWorkRequestBuilder<RegisterWorker>()
             .setConstraints(online)
@@ -79,5 +88,6 @@ object SyncScheduler {
         syncHistory(ctx)
         processOutbox(ctx)
         syncReads(ctx)
+        syncDeletes(ctx)
     }
 }

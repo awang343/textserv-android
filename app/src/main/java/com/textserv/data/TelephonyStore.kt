@@ -335,6 +335,20 @@ object TelephonyStore {
         return newlyRead
     }
 
+    /** Deletes these messages ("sms:12" / "mms:34"); returns the threads they were in. */
+    fun deleteByRefs(ctx: Context, refs: Collection<String>): Set<Long> {
+        val threads = HashSet<Long>()
+        for (ref in refs) {
+            val (kind, id) = ref.split(':', limit = 2).takeIf { it.size == 2 } ?: continue
+            val uri = Uri.withAppendedPath(if (kind == "mms") Mms.CONTENT_URI else Sms.CONTENT_URI, id)
+            ctx.contentResolver.query(uri, arrayOf("thread_id"), null, null, null)?.use { c ->
+                if (c.moveToFirst()) threads += c.getLong(0)
+            }
+            ctx.contentResolver.delete(uri, null, null)
+        }
+        return threads
+    }
+
     /** Marks these messages ("sms:12" / "mms:34") read. */
     fun markRead(ctx: Context, refs: Collection<String>) {
         val v = ContentValues().apply { put("read", 1); put("seen", 1) }

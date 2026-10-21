@@ -133,6 +133,15 @@ class ServerApi(
         req("/api/read_refs/query").post(jsonBody(json.encodeToString(refs))).build()
     ) { json.decodeFromString<List<String>>(it.body.string()).toSet() }
 
+    /** Messages ("sms:12") of threads deleted on a client, for us to delete too. */
+    suspend fun pendingDeletes(): List<String> = call(req("/api/deletes").build()) {
+        json.decodeFromString<List<String>>(it.body.string())
+    }
+
+    suspend fun deletesDone(refs: List<String>) = call(
+        req("/api/deletes/done").post(jsonBody(json.encodeToString(refs))).build()
+    ) { }
+
     suspend fun uploadAttachment(bytes: ByteArray, contentType: String, filename: String): AttachmentInfo = call(
         req("/api/attachments")
             .header("x-filename", filename.filter { it.code in 0x20..0x7E })

@@ -44,6 +44,7 @@ attachments_dir = "~/.local/share/textserv/attachments"  # default
 | History import / catch-up | `POST /api/known_refs` then `POST /api/log/batch` |
 | Thread read here | `POST /api/read_refs` with the refs just read, then as below |
 | Push `{"type":"read"}`, or app start / sync | `POST /api/read_refs/query` with the unread refs → mark the ones read elsewhere read |
+| Push `{"type":"delete"}`, or app start / sync | `GET /api/deletes` → delete those messages here → `POST /api/deletes/done` |
 | Any other push | `GET /api/outbox` → `POST /api/messages/:id/status {"status":"sending"}` (claim) → send → status `sent`/`failed` with `phone_ref` |
 | New UnifiedPush endpoint | `POST /api/register` |
 

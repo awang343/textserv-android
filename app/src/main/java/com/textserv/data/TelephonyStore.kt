@@ -59,6 +59,8 @@ object TelephonyStore {
     private val CANONICAL_ADDRESSES: Uri = Uri.parse("content://mms-sms/canonical-addresses")
     private val THREADS_SIMPLE: Uri =
         Telephony.Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build()
+    /** One row per thread for its newest message, dated in ms whether SMS or MMS */
+    private val CONVERSATIONS: Uri = Telephony.MmsSms.CONTENT_CONVERSATIONS_URI
 
     const val ADDR_FROM = 137
     const val ADDR_TO = 151
@@ -86,8 +88,23 @@ object TelephonyStore {
         return out
     }
 
+    /** Each thread's newest message date (ms) */
+    private fun newestDates(ctx: Context): Map<Long, Long> {
+        val out = HashMap<Long, Long>()
+        ctx.contentResolver.query(CONVERSATIONS, arrayOf("thread_id", "normalized_date"), null, null, null)?.use { c ->
+            while (c.moveToNext()) out[c.getLong(0)] = c.getLong(1)
+        }
+        return out
+    }
+
+    /**
+     * Threads, most recent first. The order comes from each one's newest message rather than
+     * the thread table's own date, which the provider also bumps for things that aren't new
+     * messages in it (e.g. a group message bumps its members' one-to-one threads).
+     */
     fun conversations(ctx: Context): List<Conversation> {
         val addrs = canonicalAddresses(ctx)
+        val newest = newestDates(ctx)
         val out = ArrayList<Conversation>()
         ctx.contentResolver.query(
             THREADS_SIMPLE,
@@ -101,11 +118,12 @@ object TelephonyStore {
                     threadId = c.getLong(0),
                     addresses = ids.mapNotNull { addrs[it] },
                     snippet = c.getStringOrNull(3) ?: "",
-                    date = c.getLong(1),
+                    date = newest[c.getLong(0)] ?: c.getLong(1),
                     read = c.getInt(4) != 0,
                 )
             }
         }
+        out.sortByDescending { it.date }
         return out
     }
 
